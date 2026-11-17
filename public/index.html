@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kites certificate generator</title>
+  <style>
+    :root {
+      --red: #d7402f;
+      --red-dark: #b43224;
+      --ink: #1c2428;
+      --muted: #5d6c74;
+      --line: #d3e0e6;
+      --field: #f5fafb;
+      --desk: #d5e5eb;
+      --panel: #ffffff;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background: var(--desk);
+      font-family: "Segoe UI", "Liberation Sans", "Nimbus Sans", sans-serif;
+      display: grid;
+      grid-template-columns: minmax(320px, 420px) 1fr;
+    }
+
+    .panel {
+      background: var(--panel);
+      min-height: 100vh;
+      padding: 36px 36px 28px;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid #c5d5dc;
+    }
+
+    .brand {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+    }
+
+    .mark {
+      width: 16px;
+      height: 16px;
+      margin-left: 4px;
+      background: var(--red);
+      transform: rotate(45deg);
+      flex: none;
+    }
+
+    .eyebrow {
+      margin: 0;
+      color: var(--red);
+      font-family: "Liberation Serif", "Times New Roman", Times, serif;
+      font-weight: 700;
+      letter-spacing: 0.22em;
+      font-size: 13px;
+    }
+
+    h1 {
+      margin: 2px 0 0;
+      font-size: 28px;
+      font-weight: 650;
+      letter-spacing: -0.03em;
+    }
+
+    .event {
+      margin: 22px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    form {
+      margin-top: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    label span,
+    .fixed span {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    input {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: var(--field);
+      color: var(--ink);
+      border-radius: 10px;
+      padding: 13px 14px;
+      font: 16px/1.3 "Segoe UI", "Liberation Sans", sans-serif;
+    }
+
+    input:focus {
+      outline: 2px solid var(--red);
+      border-color: transparent;
+      background: white;
+    }
+
+    .hint {
+      margin: -6px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .fixed {
+      margin: 0;
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: #f3f7f8;
+      color: var(--ink);
+      font-family: "Liberation Serif", "Times New Roman", Times, serif;
+      font-style: italic;
+      font-size: 15px;
+      line-height: 1.45;
+    }
+
+    button {
+      margin-top: 6px;
+      border: 0;
+      border-radius: 10px;
+      background: var(--red);
+      color: white;
+      padding: 14px 16px;
+      font: 600 16px/1 "Segoe UI", "Liberation Sans", sans-serif;
+      cursor: pointer;
+    }
+
+    button:hover { background: var(--red-dark); }
+    button:disabled { opacity: 0.45; cursor: default; }
+
+    button.secondary {
+      background: white;
+      color: var(--ink);
+      border: 1px solid var(--line);
+    }
+
+    button.secondary:hover { background: #f3f7f8; }
+
+    .status {
+      min-height: 1.3em;
+      margin: 0;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .status.error { color: var(--red-dark); }
+
+    .note {
+      margin-top: auto;
+      padding-top: 28px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .stage {
+      min-height: 100vh;
+      padding: 28px 28px 36px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .stage-label {
+      margin: 0 0 14px;
+      align-self: center;
+      color: #3e555e;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    .sheet {
+      position: relative;
+      height: min(88vh, 980px);
+      aspect-ratio: 595.28 / 841.89;
+      background: white;
+      box-shadow: 0 18px 50px rgba(28, 55, 70, 0.18);
+    }
+
+    .sheet img {
+      position: absolute;
+      left: 4.7619%;
+      top: 3.3658%;
+      width: 90.4752%;
+      height: 90.4858%;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    .sheet svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+
+    .sheet text {
+      font-family: "Liberation Serif", "Times New Roman", Times, serif;
+      font-style: italic;
+      font-weight: 700;
+      fill: #000;
+    }
+
+    @media (max-width: 980px) {
+      body { grid-template-columns: 1fr; }
+      .panel { min-height: auto; border-right: 0; border-bottom: 1px solid #c5d5dc; }
+      .stage { padding-top: 22px; }
+      .sheet { height: auto; width: min(100%, 560px); }
+    }
+  </style>
+</head>
+<body>
+  <section class="panel">
+    <div class="brand">
+      <span class="mark" aria-hidden="true"></span>
+      <div>
+        <p class="eyebrow">Kites</p>
+        <h1>Certificate generator</h1>
+      </div>
+    </div>
+    <p class="event">Kites Robo Challenge · 17 November 2026</p>
+
+    <form id="form">
+      <label>
+        <span>Participant name</span>
+        <input id="name" name="name" required maxlength="60" autocomplete="name" placeholder="Sian Sharone">
+      </label>
+      <label>
+        <span>Institution name</span>
+        <input id="institution" name="institution" required maxlength="80" autocomplete="organization" placeholder="Holy Mary College Kumbalam">
+      </label>
+      <label>
+        <span>Grade</span>
+        <input id="grade" name="grade" required maxlength="90" placeholder="BCom Finance, Fifth Semester">
+      </label>
+      <label>
+        <span>Phone number</span>
+        <input id="phone" name="phone" type="tel" inputmode="tel" maxlength="20" autocomplete="tel" placeholder="98765 43210">
+      </label>
+      <p class="hint">Name, institution and grade are printed in capitals. The phone number is saved in the participant list and is not printed on the certificate.</p>
+      <p class="fixed">
+        <span>Fixed line</span>
+        attended a Kites Robo Challenge on 17th November 2026
+      </p>
+      <button id="download" type="submit">Download certificate</button>
+      <button id="excel" class="secondary" type="button">Download participant list</button>
+      <p class="status" id="status" role="status"></p>
+    </form>
+
+    <p class="note">Each certificate adds one row to the same participant list. Download that list when you want the Excel file. Phone numbers are never printed on the certificate.</p>
+  </section>
+
+  <main class="stage">
+    <p class="stage-label">Preview</p>
+    <div class="sheet" aria-label="Certificate preview">
+      <img src="/template.jpg" alt="">
+      <svg viewBox="0 0 595.28 841.89" role="img">
+        <text id="line0" x="297.64" y="398.22" text-anchor="middle" font-size="14"></text>
+        <text id="line1" x="297.64" y="426.57" text-anchor="middle" font-size="14"></text>
+        <text id="line2" x="297.64" y="454.91" text-anchor="middle" font-size="14"></text>
+        <text id="line3" x="297.64" y="483.26" text-anchor="middle" font-size="14">attended a Kites Robo Challenge on 17th November 2026</text>
+      </svg>
+    </div>
+  </main>
+
+  <script>
+    const fields = ["name", "institution", "grade"].map((id) => document.getElementById(id));
+    const phone = document.getElementById("phone");
+    const lines = [0, 1, 2].map((i) => document.getElementById("line" + i));
+    const eventLine = document.getElementById("line3");
+    const form = document.getElementById("form");
+    const button = document.getElementById("download");
+    const status = document.getElementById("status");
+    const prefixes = ["This is to certify that ", "of ", "Studying "];
+
+    const center = 297.64;
+    const maxWidth = 470;
+    const baseSize = 14;
+
+    function paint() {
+      const nodes = lines.concat([eventLine]);
+      fields.forEach((field, index) => {
+        const value = field.value.trim().replace(/\s+/g, " ");
+        lines[index].textContent = value ? prefixes[index] + value.toUpperCase() : "";
+      });
+
+      let size = baseSize;
+      nodes.forEach((node) => node.setAttribute("font-size", String(baseSize)));
+      const longest = nodes.reduce((widest, node) => {
+        return Math.max(widest, node.getComputedTextLength() || 0);
+      }, 0);
+      if (longest > maxWidth) {
+        size = Math.max(8, (baseSize * maxWidth) / longest);
+      }
+
+      nodes.forEach((node) => {
+        node.setAttribute("font-size", size.toFixed(2));
+        node.setAttribute("text-anchor", "middle");
+        node.setAttribute("x", String(center));
+      });
+    }
+
+    const LIST_KEY = "kites-robo-participants";
+
+    function loadParticipants() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(LIST_KEY) || "[]");
+        return Array.isArray(saved) ? saved : [];
+      } catch (err) {
+        return [];
+      }
+    }
+
+    function rememberParticipant(entry) {
+      const rows = loadParticipants();
+      rows.push(entry);
+      localStorage.setItem(LIST_KEY, JSON.stringify(rows));
+      return rows.length;
+    }
+
+    function xml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "\"": "&quot;",
+        "'": "&apos;"
+      }[ch]));
+    }
+
+    function crc32(data) {
+      let crc = -1;
+      for (let i = 0; i < data.length; i += 1) {
+        crc ^= data[i];
+        for (let bit = 0; bit < 8; bit += 1) {
+          crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+        }
+      }
+      return (crc ^ -1) >>> 0;
+    }
+
+    function bytes(numbers) {
+      return new Uint8Array(numbers);
+    }
+
+    function u16(value) {
+      return [value & 255, (value >> 8) & 255];
+    }
+
+    function u32(value) {
+      return [value & 255, (value >> 8) & 255, (value >> 16) & 255, (value >> 24) & 255];
+    }
+
+    function zipFiles(files) {
+      const encoder = new TextEncoder();
+      const localParts = [];
+      const centralParts = [];
+      let offset = 0;
+      files.forEach((file) => {
+        const name = encoder.encode(file.name);
+        const data = encoder.encode(file.data);
+        const crc = crc32(data);
+        const local = bytes([
+          ...u32(0x04034b50), ...u16(20), ...u16(0), ...u16(0),
+          ...u16(0), ...u16(0), ...u32(crc), ...u32(data.length), ...u32(data.length),
+          ...u16(name.length), ...u16(0)
+        ]);
+        localParts.push(local, name, data);
+        const central = bytes([
+          ...u32(0x02014b50), ...u16(20), ...u16(20), ...u16(0), ...u16(0),
+          ...u16(0), ...u16(0), ...u32(crc), ...u32(data.length), ...u32(data.length),
+          ...u16(name.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0),
+          ...u32(0), ...u32(offset)
+        ]);
+        centralParts.push(central, name);
+        offset += local.length + name.length + data.length;
+      });
+      const centralSize = centralParts.reduce((sum, part) => sum + part.length, 0);
+      const end = bytes([
+        ...u32(0x06054b50), ...u16(0), ...u16(0),
+        ...u16(files.length), ...u16(files.length),
+        ...u32(centralSize), ...u32(offset), ...u16(0)
+      ]);
+      const all = localParts.concat(centralParts, [end]);
+      const blob = new Blob(all, { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      return blob;
+    }
+
+    function participantWorkbook(rows) {
+      const headers = ["Participant name", "Institution name", "Grade", "Phone number", "Added on"];
+      const columns = "ABCDE";
+      const lines = [headers].concat(rows.map((row) => [
+        row.name, row.institution, row.grade, row.phone, row.added
+      ]));
+      const sheetRows = lines.map((line, rowIndex) => {
+        const cells = line.map((value, columnIndex) => {
+          const ref = columns[columnIndex] + (rowIndex + 1);
+          return `<c r="${ref}" t="inlineStr"><is><t>${xml(value)}</t></is></c>`;
+        }).join("");
+        return `<row r="${rowIndex + 1}">${cells}</row>`;
+      }).join("");
+      return zipFiles([
+        {
+          name: "[Content_Types].xml",
+          data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+</Types>`
+        },
+        {
+          name: "_rels/.rels",
+          data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`
+        },
+        {
+          name: "xl/workbook.xml",
+          data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<sheets><sheet name="Participants" sheetId="1" r:id="rId1"/></sheets>
+</workbook>`
+        },
+        {
+          name: "xl/_rels/workbook.xml.rels",
+          data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+</Relationships>`
+        },
+        {
+          name: "xl/worksheets/sheet1.xml",
+          data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<sheetData>${sheetRows}</sheetData>
+</worksheet>`
+        }
+      ]);
+    }
+
+    function saveBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    document.getElementById("excel").addEventListener("click", async () => {
+      status.classList.remove("error");
+      try {
+        const response = await fetch("/participants.xlsx");
+        if (response.ok) {
+          saveBlob(await response.blob(), "Kites-Robo-Challenge.xlsx");
+          status.textContent = "Participant list downloaded. It is the same file, with every person added so far.";
+          return;
+        }
+      } catch (err) {
+        /* The public site keeps the list in this browser instead. */
+      }
+      const rows = loadParticipants();
+      if (!rows.length) {
+        status.textContent = "The participant list is created when the first certificate is downloaded.";
+        status.classList.add("error");
+        return;
+      }
+      saveBlob(participantWorkbook(rows), "Kites-Robo-Challenge.xlsx");
+      status.textContent = "Participant list downloaded. It is the same file, with every person added so far.";
+    });
+
+    fields.concat([phone]).forEach((field) => field.addEventListener("input", () => {
+      paint();
+      status.textContent = "";
+      status.classList.remove("error");
+    }));
+    paint();
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      status.classList.remove("error");
+      status.textContent = "Preparing the certificate…";
+      button.disabled = true;
+
+      const payload = {
+        name: fields[0].value,
+        institution: fields[1].value,
+        grade: fields[2].value,
+        phone: phone.value
+      };
+
+      try {
+        const response = await fetch("/api/certificate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const type = response.headers.get("Content-Type") || "";
+        if (!response.ok || !type.includes("pdf")) {
+          let message = "Could not create the certificate.";
+          try {
+            const data = await response.json();
+            if (data.error) message = data.error;
+          } catch (err) {
+            /* keep the fallback message */
+          }
+          status.textContent = message;
+          status.classList.add("error");
+          return;
+        }
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        const match = /filename="([^"]+)"/.exec(response.headers.get("Content-Disposition") || "");
+        link.href = url;
+        link.download = match ? match[1] : "certificate.pdf";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+
+        const count = response.headers.get("X-Participant-Count");
+        if (count) {
+          status.textContent = "Certificate downloaded. Row " + count + " was added to the participant list.";
+        } else {
+          const total = rememberParticipant({
+            name: payload.name.trim().replace(/\s+/g, " "),
+            institution: payload.institution.trim().replace(/\s+/g, " "),
+            grade: payload.grade.trim().replace(/\s+/g, " "),
+            phone: payload.phone.trim().replace(/\s+/g, " "),
+            added: new Date().toLocaleString("en-IN", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: true
+            })
+          });
+          status.textContent = "Certificate downloaded. Row " + total + " was added to the participant list.";
+        }
+        fields[0].value = "";
+        phone.value = "";
+        paint();
+        fields[0].focus();
+      } catch (err) {
+        status.textContent = "Could not reach the certificate desk. Keep the app running and try again.";
+        status.classList.add("error");
+      } finally {
+        button.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
