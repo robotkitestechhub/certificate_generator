@@ -93,6 +93,11 @@
       text-transform: uppercase;
     }
 
+    .fixed strong {
+      font-style: normal;
+      color: var(--red-dark);
+    }
+
     input {
       width: 100%;
       border: 1px solid var(--line);
@@ -107,6 +112,62 @@
       outline: 2px solid var(--red);
       border-color: transparent;
       background: white;
+    }
+
+    .kind {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      border: 0;
+    }
+
+    .kind legend {
+      grid-column: 1 / -1;
+      padding: 0;
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .kind label {
+      display: block;
+    }
+
+    .kind input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .kind span {
+      display: block;
+      margin: 0;
+      text-align: center;
+      text-transform: none;
+      letter-spacing: 0;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--field);
+      color: var(--ink);
+      padding: 12px 10px;
+      font-size: 15px;
+      font-weight: 650;
+      cursor: pointer;
+    }
+
+    .kind input:checked + span {
+      background: var(--red);
+      border-color: var(--red);
+      color: white;
+    }
+
+    .kind input:focus-visible + span {
+      outline: 2px solid var(--red);
     }
 
     .hint {
@@ -238,6 +299,17 @@
     <p class="event">Kites Robo Challenge · 17 November 2026</p>
 
     <form id="form">
+      <fieldset class="kind">
+        <legend>Certificate</legend>
+        <label>
+          <input type="radio" name="kind" value="participation" checked>
+          <span>Participation</span>
+        </label>
+        <label>
+          <input type="radio" name="kind" value="winner">
+          <span>Winner</span>
+        </label>
+      </fieldset>
       <label>
         <span>Participant name</span>
         <input id="name" name="name" required maxlength="60" autocomplete="name" placeholder="Sian Sharone">
@@ -254,10 +326,9 @@
         <span>Phone number</span>
         <input id="phone" name="phone" type="tel" inputmode="tel" maxlength="20" autocomplete="tel" placeholder="98765 43210">
       </label>
-      <p class="hint">Name, institution and grade are printed in capitals. The phone number is saved in the participant list and is not printed on the certificate.</p>
-      <p class="fixed">
-        <span>Fixed line</span>
-        attended a Kites Robo Challenge on 17th November 2026
+      <p class="hint">Only the name, institution and grade change. The phone number is saved in the participant list and is not printed on the certificate.</p>
+      <p class="fixed" id="wording">
+        <span>Fixed wording</span>
       </p>
       <button id="download" type="submit">Download certificate</button>
       <button id="excel" class="secondary" type="button">Download participant list</button>
@@ -270,12 +341,10 @@
   <main class="stage">
     <p class="stage-label">Preview</p>
     <div class="sheet" aria-label="Certificate preview">
-      <img src="/template.jpg" alt="">
+      <img id="template" src="/template.jpg" alt="">
       <svg viewBox="0 0 595.28 841.89" role="img">
-        <text id="line0" x="297.64" y="398.22" text-anchor="middle" font-size="14"></text>
-        <text id="line1" x="297.64" y="426.57" text-anchor="middle" font-size="14"></text>
-        <text id="line2" x="297.64" y="454.91" text-anchor="middle" font-size="14"></text>
-        <text id="line3" x="297.64" y="483.26" text-anchor="middle" font-size="14">attended a Kites Robo Challenge on 17th November 2026</text>
+        <text id="probe" x="0" y="-20" font-size="13"></text>
+        <g id="body"></g>
       </svg>
     </div>
   </main>
@@ -283,38 +352,113 @@
   <script>
     const fields = ["name", "institution", "grade"].map((id) => document.getElementById(id));
     const phone = document.getElementById("phone");
-    const lines = [0, 1, 2].map((i) => document.getElementById("line" + i));
-    const eventLine = document.getElementById("line3");
     const form = document.getElementById("form");
     const button = document.getElementById("download");
     const status = document.getElementById("status");
-    const prefixes = ["This is to certify that ", "of ", "Studying "];
+    const probe = document.getElementById("probe");
+    const body = document.getElementById("body");
+    const template = document.getElementById("template");
+    const wording = document.getElementById("wording");
+    const kindInputs = Array.from(document.querySelectorAll('input[name="kind"]'));
+
+    const copies = {
+      participation: {
+        image: "/template.jpg",
+        achievement: "has successfully participated in",
+        closing: "active participation"
+      },
+      winner: {
+        image: "/winner.jpg",
+        achievement: "is a winner of",
+        closing: "outstanding performance"
+      }
+    };
+
+    function selectedKind() {
+      const chosen = kindInputs.find((input) => input.checked);
+      return chosen ? chosen.value : "participation";
+    }
 
     const center = 297.64;
-    const maxWidth = 470;
-    const baseSize = 14;
+    const maxWidth = 460;
+    const blockTop = 330;
+    const blockBottom = 545;
+    const baseSize = 13;
+    const minSize = 9;
+    const leading = 1.55;
+    const paragraphGap = 12;
+
+    function shown(value) {
+      const text = value.trim().replace(/\s+/g, " ");
+      return text || "________";
+    }
+
+    function paragraphs() {
+      const copy = copies[selectedKind()];
+      return [
+        "This is to certify that " + shown(fields[0].value) + ", a student of " + shown(fields[1].value) + ", studying in " + shown(fields[2].value) + ", " + copy.achievement + " the KITES ROBO CHALLENGE held on 17th November 2026.",
+        "We appreciate his enthusiasm, " + copy.closing + ", and interest in robotics and innovation."
+      ];
+    }
+
+    function wrap(text, size) {
+      probe.setAttribute("font-size", String(size));
+      const words = text.split(" ");
+      const lines = [];
+      let current = "";
+      words.forEach((word) => {
+        const trial = current ? current + " " + word : word;
+        probe.textContent = trial;
+        if (!current || probe.getComputedTextLength() <= maxWidth) current = trial;
+        else {
+          lines.push(current);
+          current = word;
+        }
+      });
+      if (current) lines.push(current);
+      return lines;
+    }
 
     function paint() {
-      const nodes = lines.concat([eventLine]);
-      fields.forEach((field, index) => {
-        const value = field.value.trim().replace(/\s+/g, " ");
-        lines[index].textContent = value ? prefixes[index] + value.toUpperCase() : "";
-      });
-
+      const copy = copies[selectedKind()];
+      template.src = copy.image;
+      wording.innerHTML = "<span>Fixed wording</span> This is to certify that <strong>name</strong>, a student of <strong>institution</strong>, studying in <strong>grade</strong>, " + copy.achievement + " the KITES ROBO CHALLENGE held on 17th November 2026. We appreciate his enthusiasm, " + copy.closing + ", and interest in robotics and innovation.";
       let size = baseSize;
-      nodes.forEach((node) => node.setAttribute("font-size", String(baseSize)));
-      const longest = nodes.reduce((widest, node) => {
-        return Math.max(widest, node.getComputedTextLength() || 0);
-      }, 0);
-      if (longest > maxWidth) {
-        size = Math.max(8, (baseSize * maxWidth) / longest);
+      let blocks = paragraphs().map((text) => wrap(text, size));
+      const fits = () => {
+        const lines = blocks.reduce((count, block) => count + block.length, 0);
+        const span = (lines - 1) * size * leading + paragraphGap * (blocks.length - 1);
+        const tooWide = blocks.some((block) => block.some((line) => {
+          probe.setAttribute("font-size", String(size));
+          probe.textContent = line;
+          return probe.getComputedTextLength() > maxWidth + 0.5;
+        }));
+        return !tooWide && blockTop + span <= blockBottom;
+      };
+      while (size > minSize && !fits()) {
+        size = Math.max(minSize, size - 0.25);
+        blocks = paragraphs().map((text) => wrap(text, size));
+        if (size === minSize) break;
       }
-
-      nodes.forEach((node) => {
-        node.setAttribute("font-size", size.toFixed(2));
-        node.setAttribute("text-anchor", "middle");
-        node.setAttribute("x", String(center));
+      const lines = blocks.reduce((count, block) => count + block.length, 0);
+      const span = (lines - 1) * size * leading + paragraphGap * (blocks.length - 1);
+      const spare = Math.max(0, blockBottom - blockTop - span);
+      let y = blockTop + spare / 2;
+      body.replaceChildren();
+      blocks.forEach((block, index) => {
+        if (index) y += paragraphGap;
+        block.forEach((line) => {
+          const node = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          node.setAttribute("x", String(center));
+          node.setAttribute("y", y.toFixed(2));
+          node.setAttribute("text-anchor", "middle");
+          node.setAttribute("font-size", size.toFixed(2));
+          node.textContent = line;
+          body.appendChild(node);
+          y += size * leading;
+        });
       });
+      probe.textContent = "";
     }
 
     const LIST_KEY = "kites-robo-participants";
@@ -404,10 +548,10 @@
     }
 
     function participantWorkbook(rows) {
-      const headers = ["Participant name", "Institution name", "Grade", "Phone number", "Added on"];
-      const columns = "ABCDE";
+      const headers = ["Participant name", "Institution name", "Grade", "Phone number", "Added on", "Certificate"];
+      const columns = "ABCDEF";
       const lines = [headers].concat(rows.map((row) => [
-        row.name, row.institution, row.grade, row.phone, row.added
+        row.name, row.institution, row.grade, row.phone, row.added, row.certificate || "Participation"
       ]));
       const sheetRows = lines.map((line, rowIndex) => {
         const cells = line.map((value, columnIndex) => {
@@ -496,6 +640,11 @@
       status.textContent = "";
       status.classList.remove("error");
     }));
+    kindInputs.forEach((input) => input.addEventListener("change", () => {
+      paint();
+      status.textContent = "";
+      status.classList.remove("error");
+    }));
     paint();
 
     form.addEventListener("submit", async (event) => {
@@ -508,7 +657,8 @@
         name: fields[0].value,
         institution: fields[1].value,
         grade: fields[2].value,
-        phone: phone.value
+        phone: phone.value,
+        kind: selectedKind()
       };
 
       try {
@@ -551,6 +701,7 @@
             institution: payload.institution.trim().replace(/\s+/g, " "),
             grade: payload.grade.trim().replace(/\s+/g, " "),
             phone: payload.phone.trim().replace(/\s+/g, " "),
+            certificate: payload.kind === "winner" ? "Winner" : "Participation",
             added: new Date().toLocaleString("en-IN", {
               day: "2-digit",
               month: "short",

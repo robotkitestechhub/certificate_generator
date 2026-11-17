@@ -1,7 +1,7 @@
 {
   "functions": {
     "api/certificate.py": {
-      "includeFiles": "public/template.jpg",
+      "includeFiles": "public/*.jpg",
       "maxDuration": 30
     }
   }

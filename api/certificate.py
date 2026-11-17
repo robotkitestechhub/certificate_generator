@@ -12,7 +12,7 @@ from pathlib import Path
 from fpdf.errors import FPDFUnicodeEncodingException
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from app import build_pdf, pdf_filename, tidy, tidy_phone
+from app import build_pdf, certificate_kind, pdf_filename, tidy, tidy_phone
 
 
 class handler(BaseHTTPRequestHandler):
@@ -39,11 +39,12 @@ class handler(BaseHTTPRequestHandler):
             institution = tidy(payload.get("institution"), "institution name", 80)
             grade = tidy(payload.get("grade"), "grade", 90)
             tidy_phone(payload.get("phone"))
+            kind = certificate_kind(payload.get("kind"))
         except ValueError as exc:
             self._json(400, {"error": str(exc)})
             return
         try:
-            pdf = build_pdf(name.upper(), institution.upper(), grade.upper())
+            pdf = build_pdf(name, institution, grade, kind)
         except FPDFUnicodeEncodingException:
             self._json(
                 400,
@@ -57,7 +58,7 @@ class handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(pdf)))
         self.send_header(
             "Content-Disposition",
-            f'attachment; filename="{pdf_filename(name.upper())}"',
+            f'attachment; filename="{pdf_filename(name, kind)}"',
         )
         self.end_headers()
         self.wfile.write(pdf)

@@ -4,12 +4,7 @@ Create the Kites Robo Challenge certificate of participation and keep a particip
 
 The certificate reads:
 
-> This is to certify that NAME  
-> of INSTITUTION  
-> Studying GRADE  
-> attended a Kites Robo Challenge on 17th November 2026
-
-Name, institution and grade are printed in capitals. The phone number is stored in the participant list only.
+Choose Participation or Winner. Only the name, institution and grade change. A winner certificate says the person is a winner, and its heading reads Certificate of Winner. The phone number is stored in the participant list only.
 
 ## Run it on this computer
 

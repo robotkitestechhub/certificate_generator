@@ -21,7 +21,14 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 
 ROOT = Path(__file__).resolve().parent
-TEMPLATE = ROOT / "public" / "template.jpg"
+TEMPLATES = {
+    "participation": ROOT / "public" / "template.jpg",
+    "winner": ROOT / "public" / "winner.jpg",
+}
+KIND_LABELS = {
+    "participation": "Participation",
+    "winner": "Winner",
+}
 INDEX = ROOT / "public" / "index.html"
 EXCEL = ROOT / "Kites-Robo-Challenge.xlsx"
 EXCEL_LOCK = threading.Lock()
@@ -31,6 +38,7 @@ EXCEL_HEADERS = (
     "Grade",
     "Phone number",
     "Added on",
+    "Certificate",
 )
 
 # Page geometry copied from certificate.pdf (FPDF, A4, points).
@@ -41,13 +49,15 @@ IMG_Y_BOTTOM = 51.76
 IMG_W = 538.58
 IMG_H = 761.79
 
-# Baselines of the first four body lines, measured from the bottom edge.
-BASELINES = (443.67, 415.32, 386.98, 358.63)
-FONT_SIZE = 14.0
-MAX_WIDTH = 470.0
-MIN_SIZE = 8.0
-
-EVENT_LINE = "attended a Kites Robo Challenge on 17th November 2026"
+# The body sits in the open area under the title and above the signatures.
+# Positions are distances from the top of the page.
+BLOCK_TOP = 330.0
+BLOCK_BOTTOM = 545.0
+FONT_SIZE = 13.0
+MAX_WIDTH = 460.0
+MIN_SIZE = 9.0
+LEADING = 1.55
+PARAGRAPH_GAP = 12.0
 
 
 def tidy(value, label, limit):
@@ -61,6 +71,14 @@ def tidy(value, label, limit):
     if any(ord(ch) < 32 for ch in text):
         raise ValueError(f"The {label} has characters that cannot be printed.")
     return text
+
+
+def certificate_kind(value):
+    if value in (None, "", "participation"):
+        return "participation"
+    if value == "winner":
+        return "winner"
+    raise ValueError("Choose a participation certificate or a winner certificate.")
 
 
 def tidy_phone(value):
@@ -78,12 +96,18 @@ def tidy_phone(value):
     return text
 
 
-def append_participant(name, institution, grade, phone):
+def append_participant(name, institution, grade, phone, certificate):
     """Create the workbook on the first entry, then append one row."""
     with EXCEL_LOCK:
         if EXCEL.exists():
             workbook = load_workbook(EXCEL)
             sheet = workbook.active
+            if sheet.cell(1, 6).value != "Certificate":
+                cell = sheet.cell(1, 6, "Certificate")
+                cell.font = Font(bold=True, color="FFFFFF")
+                cell.fill = PatternFill("solid", fgColor="B43224")
+                cell.alignment = Alignment(vertical="center")
+                sheet.column_dimensions["F"].width = 18
         else:
             workbook = Workbook()
             sheet = workbook.active
@@ -94,8 +118,8 @@ def append_participant(name, institution, grade, phone):
                 cell.fill = PatternFill("solid", fgColor="B43224")
                 cell.alignment = Alignment(vertical="center")
             sheet.freeze_panes = "A2"
-            sheet.auto_filter.ref = "A1:E1"
-            for column, width in zip("ABCDE", (28, 42, 40, 18, 22)):
+            sheet.auto_filter.ref = "A1:F1"
+            for column, width in zip("ABCDEF", (28, 42, 40, 18, 22, 18)):
                 sheet.column_dimensions[column].width = width
 
         sheet.append([
@@ -104,49 +128,108 @@ def append_participant(name, institution, grade, phone):
             grade,
             phone,
             datetime.now().strftime("%d %b %Y, %I:%M %p"),
+            certificate,
         ])
         sheet.cell(sheet.max_row, 4).number_format = "@"
-        sheet.auto_filter.ref = f"A1:E{sheet.max_row}"
+        sheet.auto_filter.ref = f"A1:F{sheet.max_row}"
         temporary = EXCEL.with_suffix(".tmp.xlsx")
         workbook.save(temporary)
         temporary.replace(EXCEL)
         return sheet.max_row - 1
 
 
-def certificate_lines(name, institution, grade):
+def certificate_paragraphs(name, institution, grade, kind):
+    """Fixed wording. Only the name, institution and grade are filled in."""
+    if kind == "winner":
+        achievement = "is a winner of"
+        closing = "outstanding performance"
+    else:
+        achievement = "has successfully participated in"
+        closing = "active participation"
     return (
-        f"This is to certify that {name}",
-        f"of {institution}",
-        f"Studying {grade}",
-        EVENT_LINE,
+        (
+            f"This is to certify that {name}, a student of {institution}, "
+            f"studying in {grade}, {achievement} the "
+            "KITES ROBO CHALLENGE held on 17th November 2026."
+        ),
+        (
+            "We appreciate his enthusiasm, "
+            f"{closing}, and interest in robotics and innovation."
+        ),
     )
 
 
-def pdf_filename(name):
+def wrap_line(pdf, text, width):
+    words = text.split()
+    lines = []
+    current = ""
+    for word in words:
+        trial = word if not current else f"{current} {word}"
+        if not current or pdf.get_string_width(trial) <= width:
+            current = trial
+        else:
+            lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+    return lines
+
+
+def layout_paragraphs(pdf, paragraphs, size, force=False):
+    pdf.set_font("Times", "BI", size)
+    blocks = [wrap_line(pdf, text, MAX_WIDTH) for text in paragraphs]
+    too_wide = any(
+        pdf.get_string_width(line) > MAX_WIDTH + 0.5
+        for block in blocks
+        for line in block
+    )
+    line_gap = size * LEADING
+    line_count = sum(len(block) for block in blocks)
+    span = (line_count - 1) * line_gap + PARAGRAPH_GAP * (len(blocks) - 1)
+    if not force and (too_wide or BLOCK_TOP + span > BLOCK_BOTTOM):
+        return None
+    spare = max(0.0, BLOCK_BOTTOM - BLOCK_TOP - span)
+    y = BLOCK_TOP + spare / 2.0
+    placed = []
+    for index, block in enumerate(blocks):
+        if index:
+            y += PARAGRAPH_GAP
+        for line in block:
+            placed.append((line, y))
+            y += line_gap
+    return placed
+
+
+def pdf_filename(name, kind):
     slug = "".join(ch if ch.isalnum() else "-" for ch in name)
     slug = "-".join(part for part in slug.split("-") if part)
-    return f"Kites-Certificate-{slug or 'Participant'}.pdf"
+    role = "Winner" if kind == "winner" else "Participation"
+    return f"Kites-{role}-{slug or 'Participant'}.pdf"
 
 
-def build_pdf(name, institution, grade):
+def build_pdf(name, institution, grade, kind="participation"):
     pdf = FPDF(unit="pt", format=(PAGE_W, PAGE_H))
     pdf.set_auto_page_break(False)
     pdf.add_page()
     img_top = PAGE_H - (IMG_Y_BOTTOM + IMG_H)
-    pdf.image(str(TEMPLATE), x=IMG_X, y=img_top, w=IMG_W, h=IMG_H)
+    pdf.image(str(TEMPLATES[kind]), x=IMG_X, y=img_top, w=IMG_W, h=IMG_H)
     pdf.set_text_color(0, 0, 0)
 
-    lines = certificate_lines(name, institution, grade)
-    # One size for the whole block, taken from the longest line, so a short
-    # name stays on the same centre as a longer institution or grade.
+    paragraphs = certificate_paragraphs(name, institution, grade, kind)
     size = FONT_SIZE
-    pdf.set_font("Times", "BI", size)
-    while size > MIN_SIZE and any(pdf.get_string_width(text) > MAX_WIDTH for text in lines):
+    placed = None
+    while size >= MIN_SIZE:
+        placed = layout_paragraphs(pdf, paragraphs, size)
+        if placed is not None:
+            break
         size -= 0.25
-        pdf.set_font("Times", "BI", size)
-    for text, baseline in zip(lines, BASELINES):
+    if placed is None:
+        size = MIN_SIZE
+        placed = layout_paragraphs(pdf, paragraphs, size, force=True)
+    pdf.set_font("Times", "BI", size)
+    for text, top in placed:
         width = pdf.get_string_width(text)
-        pdf.text((PAGE_W - width) / 2.0, PAGE_H - baseline, text)
+        pdf.text((PAGE_W - width) / 2.0, top, text)
 
     return bytes(pdf.output())
 
@@ -175,7 +258,10 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, INDEX.read_bytes(), "text/html; charset=utf-8")
             return
         if path == "/template.jpg":
-            self._send(200, TEMPLATE.read_bytes(), "image/jpeg")
+            self._send(200, TEMPLATES["participation"].read_bytes(), "image/jpeg")
+            return
+        if path == "/winner.jpg":
+            self._send(200, TEMPLATES["winner"].read_bytes(), "image/jpeg")
             return
         if path == "/participants.xlsx":
             if not EXCEL.is_file():
@@ -211,12 +297,13 @@ class Handler(BaseHTTPRequestHandler):
             institution = tidy(payload.get("institution"), "institution name", 80)
             grade = tidy(payload.get("grade"), "grade", 90)
             phone = tidy_phone(payload.get("phone"))
+            kind = certificate_kind(payload.get("kind"))
         except ValueError as exc:
             self._json(400, {"error": str(exc)})
             return
 
         try:
-            pdf = build_pdf(name.upper(), institution.upper(), grade.upper())
+            pdf = build_pdf(name, institution, grade, kind)
         except FPDFUnicodeEncodingException:
             self._json(
                 400,
@@ -227,7 +314,7 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         try:
-            count = append_participant(name, institution, grade, phone)
+            count = append_participant(name, institution, grade, phone, KIND_LABELS[kind])
         except Exception:
             self._json(
                 500,
@@ -240,15 +327,15 @@ class Handler(BaseHTTPRequestHandler):
             pdf,
             "application/pdf",
             {
-                "Content-Disposition": f'attachment; filename="{pdf_filename(name.upper())}"',
+                "Content-Disposition": f'attachment; filename="{pdf_filename(name, kind)}"',
                 "X-Participant-Count": str(count),
             },
         )
 
 
 def main():
-    if not TEMPLATE.is_file() or not INDEX.is_file():
-        sys.exit("Missing the certificate template or the dashboard page.")
+    if not INDEX.is_file() or any(not path.is_file() for path in TEMPLATES.values()):
+        sys.exit("Missing a certificate template or the dashboard page.")
 
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
